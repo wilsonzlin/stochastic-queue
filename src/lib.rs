@@ -217,6 +217,45 @@ impl<T> Iterator for StochasticMpmcReceiverIterator<T> {
 }
 
 /// Create a MPMC channel that receives items in a uniformly random order but without any delays. Returns a tuple containing the sender and receiver, both of which can be cheaply cloned. Senders and receivers will continue to work until there are no more senders/receivers on the other side.
+///
+/// # Example
+///
+/// ```rust
+/// use std::thread;
+/// use stochastic_queue::stochastic_channel;
+///
+/// let (sender, receiver) = stochastic_channel();
+/// let r1 = receiver.clone();
+/// let t1 = thread::spawn(move || {
+///   for i in r1 {
+///     println!("Received {i}");
+///   };
+/// });
+/// let r2 = receiver.clone();
+/// let t2 = thread::spawn(move || {
+///   for i in r2 {
+///     println!("Received {i}");
+///   };
+/// });
+/// let s_even = sender.clone();
+/// let t3 = thread::spawn(move || {
+///   for i in (0..10).step_by(2) {
+///     s_even.send(i).unwrap();
+///   };
+/// });
+/// let s_odd = sender.clone();
+/// let t4 = thread::spawn(move || {
+///   for i in (1..10).step_by(2) {
+///     s_odd.send(i).unwrap();
+///   };
+/// });
+/// drop(sender);
+/// drop(receiver);
+/// t1.join().unwrap();
+/// t2.join().unwrap();
+/// t3.join().unwrap();
+/// t4.join().unwrap();
+/// ```
 pub fn stochastic_channel<T>() -> (StochasticMpmcSender<T>, StochasticMpmcReceiver<T>) {
   let inner = Arc::new(MpmcState {
     condvar: Condvar::new(),
