@@ -1,0 +1,13 @@
+[package]
+name = "stochastic-queue"
+version = "0.1.0"
+description = "Queue and MPMC channel that pops in a random order"
+license = "Apache-2.0"
+homepage = "https://github.com/wilsonzlin/tokio-sync-read-stream"
+repository = "https://github.com/wilsonzlin/tokio-sync-read-stream.git"
+readme = "README.md"
+authors = ["Wilson Lin <code@wilsonl.in>"]
+edition = "2021"
+
+[dependencies]
+rand = "0.8.5"
