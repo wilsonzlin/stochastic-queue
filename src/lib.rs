@@ -11,6 +11,7 @@ use std::sync::atomic::{self};
 use std::sync::Arc;
 use std::sync::Condvar;
 use std::sync::Mutex;
+use std::time::Duration;
 
 struct Entry<T> {
   pos: u64,
@@ -168,6 +169,21 @@ impl Display for StochasticMpmcRecvError {
 
 impl Error for StochasticMpmcRecvError {}
 
+/// Errors that could occur when receiving an item from a stochastic channel with a timeout.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StochasticMpmcRecvTimeoutError {
+  NoSenders,
+  Timeout,
+}
+
+impl Display for StochasticMpmcRecvTimeoutError {
+  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    write!(f, "{:?}", self)
+  }
+}
+
+impl Error for StochasticMpmcRecvTimeoutError {}
+
 impl<T> StochasticMpmcReceiver<T> {
   /// Receive an item, or return None if no items are available right now. If there are no senders, an error is returned.
   pub fn try_recv(&self) -> Result<Option<T>, StochasticMpmcRecvError> {
@@ -176,6 +192,22 @@ impl<T> StochasticMpmcReceiver<T> {
     };
     let mut queue = self.0.queue.lock().unwrap();
     Ok(queue.pop())
+  }
+
+  /// Block the current thread until an item can be received, time has run out, or there are no more senders. If time has run out or there are no more senders, an error is returned.
+  pub fn recv_timeout(&self, timeout: Duration) -> Result<T, StochasticMpmcRecvTimeoutError> {
+    let mut queue = self.0.queue.lock().unwrap();
+    while queue.is_empty() {
+      if self.0.senders.load(atomic::Ordering::Relaxed) == 0 {
+        return Err(StochasticMpmcRecvTimeoutError::NoSenders);
+      };
+      let res = self.0.condvar.wait_timeout(queue, timeout).unwrap();
+      if res.1.timed_out() {
+        return Err(StochasticMpmcRecvTimeoutError::Timeout);
+      };
+      queue = res.0;
+    }
+    Ok(queue.pop().unwrap())
   }
 
   /// Block the current thread until an item can be received or there are no more senders. If there are no more senders, an error is returned.
