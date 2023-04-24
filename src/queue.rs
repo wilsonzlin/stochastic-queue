@@ -56,6 +56,11 @@ impl<T> StochasticQueue<T> {
     self.entries.is_empty()
   }
 
+  /// Returns an iterator over all items in the queue without popping them. The order is arbitrary.
+  pub fn peek_iter(&self) -> impl Iterator<Item = &T> {
+    self.entries.iter().map(|e| &e.val)
+  }
+
   /// Adds an item to the queue. When it will be chosen to be popped is nondeterministic.
   pub fn push(&mut self, val: T) {
     let pos = thread_rng().next_u64();
